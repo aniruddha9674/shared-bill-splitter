@@ -1,4 +1,3 @@
-```markdown
 # SDE Intern Assignment: Shared Bill Splitter
 
 Welcome. In this assignment you build a small bill splitter for a shared home. It has two parts:
@@ -192,14 +191,3 @@ You must understand every line you submit. We check this with your video and in 
 5. Paste the repository link and the video link in the application form.
 
 We will run `pnpm install && pnpm check && pnpm typecheck && pnpm test` on your repository.
-```
-
-**Save this as `README.md` at the repo root**, then:
-
-```powershell
-git add README.md
-git commit -m "Add decisions section to README"
-git push
-```
-
-The only change from the original template is the **`## Decisions`** block inserted between `## Rules for the tests` and `## AI policy`. Everything else is untouched — so reviewers diffing against the template see exactly one new section, which is what they asked for.
