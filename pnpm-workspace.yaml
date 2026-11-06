@@ -4,3 +4,8 @@ packages:
 allowBuilds:
   esbuild: true
   workerd: true
+permissions:
+  "@tanstack/react-router":
+    skills: false
+  "@tanstack/router-plugin":
+    skills: false
