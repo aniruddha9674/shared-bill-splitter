@@ -1,3 +1,4 @@
+```markdown
 # SDE Intern Assignment: Shared Bill Splitter
 
 Welcome. In this assignment you build a small bill splitter for a shared home. It has two parts:
@@ -141,6 +142,42 @@ pnpm --filter bill-splitter-api cf-typegen
 - Do **not** change the visible tests or `api/test/helpers.ts`. We compare them with the original.
 - We run extra tests after you submit. They test the cases in "Cases you must handle" more closely.
 
+## Decisions
+
+### 1. Conditional `UPDATE` for payment safety
+
+Paying has two nasty cases: the same request sent twice, and two different requests racing for the same share. Rather than wrap payment in a transaction, I use one conditional UPDATE:
+
+```sql
+UPDATE shares SET paid_at = ?, idempotency_key = ?
+WHERE id = ? AND bill_id = ? AND paid_at IS NULL
+```
+
+D1 serializes writes, so of two concurrent updates, exactly one reports `changes = 1`. The loser (`changes = 0`) re-reads the share: same idempotency key → `200` with the existing `paidAt` (retry); different key → `409`. A `CHECK ((paid_at IS NULL) = (idempotency_key IS NULL))` constraint backs it up, so a partial write can never leave a half-paid row.
+
+**Trade-off:** one extra `SELECT` on the rare lost race, in exchange for not needing `BEGIN/COMMIT` and not risking a transaction that commits the wrong thing on retry.
+
+### 2. Composite foreign keys so shares can't cross homes
+
+Each share has `bill_id`, `member_id`, and `home_id`. Two plain foreign keys would be enough at the API level, but the database wouldn't stop a bug where a share pointed at a member from a *different* home. So I put `UNIQUE (id, home_id)` on both `bills` and `members`, and composite FKs from `shares`:
+
+```sql
+FOREIGN KEY (bill_id, home_id)   REFERENCES bills (id, home_id)
+FOREIGN KEY (member_id, home_id) REFERENCES members (id, home_id)
+```
+
+The database now enforces that a share's bill and member belong to the same home as the share itself.
+
+**Trade-off:** two extra `UNIQUE` indexes. In return, cross-home leakage is impossible at the storage layer, not just unlikely at the API.
+
+### 3. Batch inserts for bills
+
+A bill row plus one share row per member either all need to land, or none should. If they were separate awaits, a crash halfway leaves a bill with 2 of 3 shares and the next balances query under-counts. `DB.batch()` runs the whole list in one SQLite transaction.
+
+**Trade-off:** batch is one serialized round-trip instead of parallel inserts — a few milliseconds slower per bill, but the "bill has exactly one share per member" invariant is enforced by the storage, not by hope.
+
+Member `position` is assigned the same way for the same reason: `(SELECT COALESCE(MAX(position), 0) + 1 ...)` inside the `INSERT`, backed by `UNIQUE (home_id, position)`, with a small retry loop in the handler that in practice never fires.
+
 ## AI policy
 
 You can use AI tools. Tell us which ones and where in your answers on the form.
@@ -155,3 +192,14 @@ You must understand every line you submit. We check this with your video and in 
 5. Paste the repository link and the video link in the application form.
 
 We will run `pnpm install && pnpm check && pnpm typecheck && pnpm test` on your repository.
+```
+
+**Save this as `README.md` at the repo root**, then:
+
+```powershell
+git add README.md
+git commit -m "Add decisions section to README"
+git push
+```
+
+The only change from the original template is the **`## Decisions`** block inserted between `## Rules for the tests` and `## AI policy`. Everything else is untouched — so reviewers diffing against the template see exactly one new section, which is what they asked for.
