@@ -116,13 +116,7 @@ function Setup({ onCreated }: { onCreated: (id: string) => void }) {
   )
 }
 
-function BillsView({
-  homeId,
-  onChangeHome,
-}: {
-  homeId: string
-  onChangeHome: () => void
-}) {
+function BillsView({ homeId, onChangeHome }: { homeId: string; onChangeHome: () => void }) {
   const [home, setHome] = useState<Home | null>(null)
   const [bills, setBills] = useState<Bill[] | null>(null)
   const [balances, setBalances] = useState<Balance[] | null>(null)
@@ -311,13 +305,7 @@ function AddMemberForm({
   )
 }
 
-function AddBillForm({
-  homeId,
-  onAdded,
-}: {
-  homeId: string
-  onAdded: () => void | Promise<void>
-}) {
+function AddBillForm({ homeId, onAdded }: { homeId: string; onAdded: () => void | Promise<void> }) {
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
   const [busy, setBusy] = useState(false)
